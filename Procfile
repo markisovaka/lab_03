@@ -1,1 +1,1 @@
-web: python3.mainScrap.py
+worker: python3.mainScrap.py
