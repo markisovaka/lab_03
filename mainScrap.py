@@ -114,8 +114,6 @@ def add_expense(update, context):
 def expense_button(update, context):
     print("expense_button")
     query = update.callback_query
-    user_id = query.from_user.id
-
     # Получаем выбранный тип расходов из данных кнопки
     type_id = int(query.data.split("EXPENSE:", maxsplit=1)[1])
     # Сохраняем выбранный тип расходов в контексте
@@ -137,10 +135,9 @@ def save_expense(update, context):
         amount, comment = update.message.text.split(maxsplit=1)
     else:
         amount = update.message.text
-
     amount = int(amount)
-    # Добавляем расходы в бд
 
+    # Добавляем расходы в бд
     cursor.execute(
         "INSERT INTO expenses (user_id, type_id, amount, comment, timestamp) VALUES (?, ?, ?, ?, datetime('now'))",
         (user_id, type_id, amount, comment))
@@ -169,8 +166,7 @@ def add_income(update, context):
 
     # Создаем клавиатуру типов доходов
     keyboard = [[InlineKeyboardButton(income_type[2], callback_data=("INCOME:" + str(income_type[0])))] for income_type
-                in
-                income_types]
+                in income_types]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     update.message.reply_text('Выберите тип доходов:', reply_markup=reply_markup)
@@ -188,15 +184,14 @@ def save_income(update, context):
         amount, comment = update.message.text.split(maxsplit=1)
     else:
         amount = update.message.text
-
     amount = int(amount)
-    # Добавляем расходы в бд
 
+    # Добавляем расходы в бд
     cursor.execute(
         "INSERT INTO incomes (user_id, type_id, amount, comment, timestamp) VALUES (?, ?, ?, ?, datetime('now'))",
         (user_id, type_id, amount, comment))
     db.commit()
-    #
+
     update.message.reply_text('Доходы сохранены!')
 
     # Удаляем данные о выбранном типе доходов из контекста
@@ -244,22 +239,13 @@ dispatcher.add_handler(CommandHandler('add_type', add_type))
 dispatcher.add_handler(CommandHandler('add_expense', add_expense))
 dispatcher.add_handler(CommandHandler('add_income', add_income))
 
-# Регистрация обработчиков кнопок
-# dispatcher.add_handler(CallbackQueryHandler(type_button, pattern='^(expense|income)$'))
-# dispatcher.add_handler(CallbackQueryHandler(expense_button, pattern='^EXPENSE:\d+$'))
-# dispatcher.add_handler(CallbackQueryHandler(income_button, pattern='^INCOME:\d+$'))
-
-# Регистрация обработчиков сообщений
-# dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, save_type))
-# dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, save_income))
-# dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, save_expense))
-#
 # Регистрация обработчика неизвестных команд
 dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
 
 # Регистрация обработчика ошибок
 dispatcher.add_error_handler(error)
 
+# регистрация обработчика сценариев
 handler_conv = ConversationHandler(
     entry_points=[CallbackQueryHandler(expense_button, pattern='^EXPENSE:\d+$'),
                   CallbackQueryHandler(type_button, pattern='^(expense|income)$'),
