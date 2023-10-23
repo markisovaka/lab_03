@@ -23,11 +23,13 @@ def start(update, context):
         update.message.reply_text("Добро пожаловать в трекер бюджета!")
     else:
         update.message.reply_text("Вы уже зарегистрированы в трекере бюджета")
+    return "expense"
 
 
 # Функция команды /add_type
 def add_type(update, context):
     print("add_type")
+
     # Создаем клавиатуру с кнопками "Расходы" и "Доходы"
     keyboard = [[InlineKeyboardButton("Расходы", callback_data='expense')],
                 [InlineKeyboardButton("Доходы", callback_data='income')]]
@@ -96,6 +98,7 @@ def add_expense(update, context):
     # Получаем список типов расходов пользователя
     cursor.execute("SELECT * FROM expense_types WHERE user_id=?", (user_id,))
     expense_types = cursor.fetchall()
+
     # Говорим пользователю добавить тип, если их нет
     if len(expense_types) == 0:
         update.message.reply_text('У вас пока нет типов расходов. Добавьте тип с помощью команды /add_type.')
@@ -114,8 +117,11 @@ def add_expense(update, context):
 def expense_button(update, context):
     print("expense_button")
     query = update.callback_query
+    user_id = query.from_user.id
+
     # Получаем выбранный тип расходов из данных кнопки
     type_id = int(query.data.split("EXPENSE:", maxsplit=1)[1])
+
     # Сохраняем выбранный тип расходов в контексте
     context.user_data['type_id'] = type_id
 
@@ -130,11 +136,13 @@ def save_expense(update, context):
     comment = ""
     user_id = update.message.chat.id
     type_id = context.user_data["type_id"]
+
     # Получаем размер расходов и комментарий
     if " " in update.message.text:
         amount, comment = update.message.text.split(maxsplit=1)
     else:
         amount = update.message.text
+
     amount = int(amount)
 
     # Добавляем расходы в бд
@@ -166,7 +174,8 @@ def add_income(update, context):
 
     # Создаем клавиатуру типов доходов
     keyboard = [[InlineKeyboardButton(income_type[2], callback_data=("INCOME:" + str(income_type[0])))] for income_type
-                in income_types]
+                in
+                income_types]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     update.message.reply_text('Выберите тип доходов:', reply_markup=reply_markup)
@@ -179,11 +188,13 @@ def save_income(update, context):
     comment = ""
     user_id = update.message.chat.id
     type_id = context.user_data["type_id"]
+
     # Получаем размер расходов и комментарий
     if " " in update.message.text:
         amount, comment = update.message.text.split(maxsplit=1)
     else:
         amount = update.message.text
+
     amount = int(amount)
 
     # Добавляем расходы в бд
@@ -217,6 +228,45 @@ def income_button(update, context):
     return "income"
 
 
+# Функция команды /check_types
+def check_types(update, context):
+    print("check_types")
+
+    # Создаем клавиатуру с кнопками категорий
+    keyboard = [[InlineKeyboardButton("Типы расходов", callback_data='expense_list')],
+                [InlineKeyboardButton("Типы доходов", callback_data='income_list')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Выводим сообщение и клавиатуру
+    update.message.reply_text('Выберите, что хотите посмотреть:', reply_markup=reply_markup)
+
+
+# Функция вывода типов
+def check_button(update, context):
+    print("check_button")
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    # Получаем выбранную категорию из данных кнопки
+    category = query.data
+
+    # Выводим список типов
+    if category == 'expense_list':
+        cursor.execute("SELECT * FROM expense_types WHERE user_id=?", (user_id,))
+        expense_types = cursor.fetchall()
+        types = []
+        for type in expense_types: types.append(type[2])
+        query.message.reply_text(f'Типы расходов:\n{", ".join(types)}')
+    elif category == 'income_list':
+        cursor.execute("SELECT * FROM income_types WHERE user_id=?", (user_id,))
+        expense_types = cursor.fetchall()
+        types = []
+        for type in expense_types: types.append(type[2])
+        query.message.reply_text(f'Типы доходов:\n{", ".join(types)}')
+
+    return ConversationHandler.END
+
+
 # Функция обработки неизвестных команд
 def unknown_command(update, context):
     update.message.reply_text("Извините, я не понимаю эту команду.")
@@ -238,6 +288,7 @@ dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('add_type', add_type))
 dispatcher.add_handler(CommandHandler('add_expense', add_expense))
 dispatcher.add_handler(CommandHandler('add_income', add_income))
+dispatcher.add_handler(CommandHandler('check_types', check_types))
 
 # Регистрация обработчика неизвестных команд
 dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
@@ -245,10 +296,11 @@ dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
 # Регистрация обработчика ошибок
 dispatcher.add_error_handler(error)
 
-# регистрация обработчика сценариев
+# Регистрация обработчиков кнопок и сообщений
 handler_conv = ConversationHandler(
     entry_points=[CallbackQueryHandler(expense_button, pattern='^EXPENSE:\d+$'),
                   CallbackQueryHandler(type_button, pattern='^(expense|income)$'),
+                  CallbackQueryHandler(check_button, pattern='^(expense_list|income_list)$'),
                   CallbackQueryHandler(income_button, pattern='^INCOME:\d+$')],
     states={
         "expense": [MessageHandler(Filters.text & ~Filters.command, save_expense)],
