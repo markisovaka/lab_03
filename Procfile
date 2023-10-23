@@ -1,1 +1,1 @@
-gunicorn: finance_tracker.wsgi
+web: python3.bot.py
