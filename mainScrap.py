@@ -5,6 +5,35 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 # Инициализация базы данных
 db = sqlite3.connect('finances.db', check_same_thread=False)
 cursor = db.cursor()
+def goal(update, context):
+    print("goal")
+    # добавляем кнопки для работы с целями
+    keyboard = [[InlineKeyboardButton("Добавить цель", callback_data='add_goal')],
+                [InlineKeyboardButton("Посмотреть цели", callback_data='view_goals')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    # выводим кнопки
+    update.message.reply_text('Выберите, что вы хотите сделать:', reply_markup=reply_markup)
+    return ConversationHandler.END
+
+
+def goal_action_button(update, context):
+    print("goal_button")
+    query = update.callback_query
+    # Получение значения поля "data" из callback
+    action = query.data
+    # Получение идентификатора чата пользователя из callback
+    user_id = update.callback_query.message.chat.id
+    if action == 'add_goal':
+        keyboard = [[InlineKeyboardButton("Расходы", callback_data='goal_expense')],
+                    [InlineKeyboardButton("Доходы", callback_data='goal_income')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)  # Создание разметки клавиатуры с кнопками
+        query.message.reply_text('К чему вы хотите привязать цель:', reply_markup=reply_markup)
+    elif action == 'view_goals':
+        # Для каждого сообщения из списка goals_output, полученного по идентификатору пользователя
+        for mes in goals_output(user_id):
+            # Отправить сообщение с текстом mes
+            query.message.reply_text(mes)
+    return ConversationHandler.END
 
 
 # Функция для обработки команды /start
