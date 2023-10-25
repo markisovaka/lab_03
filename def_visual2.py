@@ -23,6 +23,8 @@ def visual_incomes(update, context, user_id):
         cursor.execute("SELECT name FROM 'income_types' WHERE id = ?", (elem1,))
         result = cursor.fetchone()
         exp_labels.append(result[0])
+        if len(exp_labels) == 0:
+            return "У вас нет доходов"
 
     # создаем массив значений по type_id
     exp_values = []
@@ -50,6 +52,7 @@ def visual_incomes(update, context, user_id):
     # Отправка картинки пользователю
     context.bot.send_photo(chat_id=user_id, photo=buf)
     plt.close()
+    return 0
 
 #функция вывода диаграммы расходов
 def visual_expenses(update, context, user_id):
@@ -69,6 +72,8 @@ def visual_expenses(update, context, user_id):
         cursor.execute("SELECT name FROM 'expense_types' WHERE id = ?", (elem1,))
         result = cursor.fetchone()
         exp_labels.append(result[0])
+        if len(exp_labels) == 0:
+            return "У вас нет расходов"
 
     # создаем массив значений по type_id
     exp_values = []
@@ -96,3 +101,4 @@ def visual_expenses(update, context, user_id):
     # Отправка картинки пользователю
     context.bot.send_photo(chat_id=user_id, photo=buf)
     plt.close()
+    return 0
