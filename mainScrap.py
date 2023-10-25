@@ -21,7 +21,7 @@ def start(update, context):
         cursor.execute("INSERT INTO users VALUES (?)", (user_id,))
         db.commit()
         update.message.reply_text("Добро пожаловать в трекер бюджета!\n\n"
-                                  "Начните с создания типов ваших расходов и доходов с помощью команды /add_type.\n"
+                                  "Начните с создания типов ваших расходов и доходов с помощью команды /add_type.\n\n"
                                   "Чтобы ознакомиться со всеми функциями бота воспользуйтесь командой /get_info.")
     else:
         update.message.reply_text("Вы уже зарегистрированы в трекере бюджета")
@@ -257,14 +257,12 @@ def check_button(update, context):
     if category == 'expense_list':
         cursor.execute("SELECT * FROM expense_types WHERE user_id=?", (user_id,))
         expense_types = cursor.fetchall()
-        types = []
-        for type in expense_types: types.append(type[2])
+        types = [type[2] for type in expense_types]
         query.message.reply_text(f'Типы расходов:\n\n{", ".join(types)}')
     elif category == 'income_list':
         cursor.execute("SELECT * FROM income_types WHERE user_id=?", (user_id,))
         expense_types = cursor.fetchall()
-        types = []
-        for type in expense_types: types.append(type[2])
+        types = [type[2] for type in expense_types]
         query.message.reply_text(f'Типы доходов:\n\n{", ".join(types)}')
 
     return ConversationHandler.END
