@@ -44,7 +44,6 @@ def goal_action_button(update, context):
 
 # обработчик кнопки
 def goal_type_button(update, context):
-    print("goal_type_button")
     # получаем id пользователя
     user_id = update.callback_query.message.chat.id
     query = update.callback_query
@@ -77,7 +76,6 @@ def goal_type_button(update, context):
 
 
 def goal_name_button(update, context):
-    print("goal_name_button")
     query = update.callback_query
     # Получить тип цели из данных о нажатии кнопки
     goal_type = query.data
@@ -88,7 +86,6 @@ def goal_name_button(update, context):
 
 
 def goal_amount(update, context):
-    print("goal_amount")
     amount = update.message.text  # Записываем введенный текст в переменную amount
     if not amount.isdigit():  # Проверяем, является ли введенный текст числом
         update.message.reply_text("Сумма должна быть целым неотрицательным числом\nПопробуйте еще раз")
@@ -102,34 +99,27 @@ def goal_amount(update, context):
 
 
 def goal_date(update, context):
-    print("goal_date")
     user_id = update.message.from_user.id
     # Получение имени цели из данных пользователя
     goal_name = context.user_data["goal_name"]
     goal__date = update.message.text + " 23:59:59"
-    print("goal_date1")
     if not is_valid_date(goal__date):  # Проверка, является ли введенная дата допустимой
         update.message.reply_text('Некорректный формат даты\nПопробуйте еще раз')
         return "goal_date"
-    print("goal_date2")
     type_of = context.user_data["goal_type"]
     goal__amount = context.user_data["goal_amount"]
-    print("goal_date3")
 
     cursor.execute(
         "INSERT INTO goals (user_id, goal_name, goal_date, type_of, goal_amount, start_date) VALUES (?, ?, ?, ?, ?,datetime('now', 'localtime'))",
         (user_id, goal_name, goal__date, type_of, goal__amount))
-    print("goal_date4")
     if type_of == "expense":
         type_of_ru = "Расходы"
     else:
         type_of_ru = "Доходы"
-    print("goal_date5")
     update.message.reply_text(f'Цель {type_of_ru}-{goal_name}\n'
                               f'на сумму {goal__amount} р\n'
                               f'с датой {goal__date[:11]}\n'
                               f'успешно добавлена')
-    print("goal_date6")
     db.commit()
     context.user_data.clear()
     return ConversationHandler.END
@@ -137,7 +127,6 @@ def goal_date(update, context):
 
 # Функция для обработки команды /start
 def start(update, context):
-    print("start")
     user_id = update.message.from_user.id
 
     # Проверяем, есть ли пользователь в бд
@@ -158,7 +147,6 @@ def start(update, context):
 
 # Функция команды /add_type
 def add_type(update, context):
-    print("add_type")
     # Создаем клавиатуру с кнопками "Расходы" и "Доходы"
     keyboard = [[InlineKeyboardButton("Расходы", callback_data='expense')],
                 [InlineKeyboardButton("Доходы", callback_data='income')]]
@@ -171,7 +159,6 @@ def add_type(update, context):
 
 # Функция кнопки выбора типа
 def type_button(update, context):
-    print("type_button")
     query = update.callback_query
 
     # Получаем выбранный тип из данных кнопки
@@ -190,11 +177,9 @@ def type_button(update, context):
 
 # Функция сообщения с названием типа
 def save_type(update, context):
-    print("save_type")
     user_id = update.message.from_user.id
     type_name = context.user_data['type_name']
     name = update.message.text
-    print(name)
 
     # Проверяем, есть ли уже у пользователя такой тип
     if type_name == 'expense':
@@ -223,7 +208,6 @@ def save_type(update, context):
 
 # Функция команды /add_expense
 def add_expense(update, context):
-    print("add_expense")
     user_id = update.message.from_user.id
 
     # Получаем список типов расходов пользователя
@@ -246,7 +230,6 @@ def add_expense(update, context):
 
 # Функция кнопки выбора типа расходов
 def expense_button(update, context):
-    print("expense_button")
     query = update.callback_query
     # Получаем выбранный тип расходов из данных кнопки
     type_id = int(query.data.split("EXPENSE:", maxsplit=1)[1])
@@ -266,22 +249,18 @@ def expense_button(update, context):
 
 # Функция сообщения с суммой расходов
 def save_expense(update, context):
-    print("save_expense")
     comment = ""
     user_id = update.message.chat.id
     type_id = context.user_data["type_id"]
-    print("1")
     # Получаем размер расходов и комментарий
     if " " in update.message.text:
         amount, comment = update.message.text.split(maxsplit=1)
     else:
         amount = update.message.text
-    print("2")
     # проверка что сумма является целым неотрицательным числом
     if not amount.isdigit():
         update.message.reply_text("Сумма должна быть целым неотрицательным числом\nПопробуйте еще раз")
         return "expense"
-    print(3)
     amount = int(amount)
 
     # Добавляем расходы в бд
@@ -289,18 +268,15 @@ def save_expense(update, context):
         "INSERT INTO expenses (user_id, type_id, amount, comment, timestamp) VALUES (?, ?, ?, ?, datetime('now','localtime'))",
         (user_id, type_id, amount, comment))
     db.commit()
-    print(4)
     update.message.reply_text('Расходы сохранены!')
 
     # Удаляем данные о выбранном типе расходов из контекста
     del context.user_data['type_id']
-    print(5)
     return ConversationHandler.END
 
 
 # Функция команды /add_income
 def add_income(update, context):
-    print("add_income")
     user_id = update.message.from_user.id
 
     # Получаем список типов доходов пользователя
@@ -323,7 +299,6 @@ def add_income(update, context):
 
 # Функция сообщения с суммой доходов
 def save_income(update, context):
-    print("save_income")
     comment = ""
     user_id = update.message.chat.id
     type_id = context.user_data["type_id"]
@@ -332,7 +307,6 @@ def save_income(update, context):
         amount, comment = update.message.text.split(maxsplit=1)
     else:
         amount = update.message.text
-    print(amount)
     if not amount.isdigit():
         update.message.reply_text("Сумма должна быть целым неотрицательным числом\nПопробуйте еще раз")
         return "income"
@@ -355,7 +329,6 @@ def save_income(update, context):
 
 # Функция кнопки выбора типа доходов
 def income_button(update, context):
-    print("income_button")
     query = update.callback_query
     user_id = query.from_user.id
 
@@ -377,7 +350,6 @@ def income_button(update, context):
 
 # Функция команды /check_types
 def check_types(update, context):
-    print("check_types")
 
     # Создаем клавиатуру с кнопками категорий
     keyboard = [[InlineKeyboardButton("Типы расходов", callback_data='expense_list')],
@@ -390,7 +362,6 @@ def check_types(update, context):
 
 # Функция вывода типов
 def check_button(update, context):
-    print("check_button")
     query = update.callback_query
     user_id = query.from_user.id
 
@@ -402,19 +373,24 @@ def check_button(update, context):
         cursor.execute("SELECT * FROM expense_types WHERE user_id=?", (user_id,))
         expense_types = cursor.fetchall()
         types = [type[2] for type in expense_types]
-        query.message.reply_text('Типы расходов:\n\n' + "\n".join(types))
+        if len(types) == 0:
+            query.message.reply_text("У вас нет типов расходов, добавьте их с помощью команды /add_type")
+        else:
+            query.message.reply_text('Типы расходов:\n\n' + "\n".join(types))
     elif category == 'income_list':
         cursor.execute("SELECT * FROM income_types WHERE user_id=?", (user_id,))
         expense_types = cursor.fetchall()
         types = [type[2] for type in expense_types]
-        query.message.reply_text('Типы доходов:\n\n' + "\n".join(types))
+        if len(types) == 0:
+            query.message.reply_text("У вас нет типов доходов, добавьте их с помощью команды /add_type")
+        else:
+            query.message.reply_text('Типы расходов:\n\n' + "\n".join(types))
 
     return ConversationHandler.END
 
 
 # Функция команды /get_info
 def get_info(update, context):
-    print("get_info")
     # file = open('text.txt', 'r', encoding="utf-8")
     # Открываем текстовый файл
     with open('info.txt', encoding="utf-8") as file:
@@ -426,7 +402,6 @@ def get_info(update, context):
 
 # Функция команды /get_history
 def view_history(update, context):
-    print("get_history")
 
     # Создаем клавиатуру с кнопками категорий
     keyboard = [[InlineKeyboardButton("Расходы", callback_data='expense_history'),
@@ -439,13 +414,11 @@ def view_history(update, context):
 
 # Функция вывода истории расходов
 def history_type_button(update, context):
-    print("history_type_button")
     query = update.callback_query
 
     # Получаем выбранную категорию из данных кнопки и сохраняем в контексте
     category = query.data
     context.user_data['category'] = category
-    print(1)
     # Создаем клавиатуру с кнопками периодов
     keyboard = [
         [(InlineKeyboardButton("День", callback_data='day')), (InlineKeyboardButton("Неделя", callback_data='week'))],
@@ -454,19 +427,14 @@ def history_type_button(update, context):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Выводим сообщение и клавиатуру
-    print(3)
 
     query.message.reply_text('Выберите период, за который хотите посмотреть историю:', reply_markup=reply_markup)
-    print(4)
 
 
 # Функция вывода истории расходов
 def history_button(update, context):
-    print("history_button 6")
-    print(2)
     query = update.callback_query
     user_id = query.from_user.id
-    print(1)
     category = context.user_data["category"]
 
     # Получаем выбранный период из данных кнопки
@@ -551,7 +519,6 @@ def history_button(update, context):
                            "BETWEEN ? AND ? ORDER BY timestamp",
                            (user_id, time_start, time_end))
             result = cursor.fetchall()
-    print(3)
 
     # Вывод истории
     if len(result) == 0:
@@ -560,13 +527,10 @@ def history_button(update, context):
     history = [''] * len(result)
     for i in range(len(result)):
         history[i] = str(result[i][0]) + ' р. ' + str(result[i][1]) + ' ' + str(result[i][2][:10])
-    print(4)
     query.message.reply_text(f'История {category_ru} за {within_ru}:\n\n' + "\n".join(history))
-    print(5)
 
 
 def view_diagram(update, context):
-    print("view_diagram")
     # Создаем клавиатуру с кнопками категорий
     keyboard = [[InlineKeyboardButton("Расходы", callback_data='expense_diagram'),
                  InlineKeyboardButton("Доходы", callback_data='income_diagram')]]
@@ -577,7 +541,6 @@ def view_diagram(update, context):
 
 
 def diagram_button(update, context):
-    print("diagram_button")
     user_id = update.callback_query.from_user.id
     if update.callback_query.data == "expense_diagram":
         returned = visual_expenses(update, context, user_id)
