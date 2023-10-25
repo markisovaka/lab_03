@@ -29,8 +29,12 @@ def goal_action_button(update, context):
         reply_markup = InlineKeyboardMarkup(keyboard)  # Создание разметки клавиатуры с кнопками
         query.message.reply_text('К чему вы хотите привязать цель:', reply_markup=reply_markup)
     elif action == 'view_goals':
-            query.message.reply_text("тут что-то будет")
+        # Для каждого сообщения из списка goals_output, полученного по идентификатору пользователя
+        for mes in goals_output(user_id):
+            # Отправить сообщение с текстом mes
+            query.message.reply_text(mes)
     return ConversationHandler.END
+
 
 
 # обработчик кнопки
@@ -364,4 +368,3 @@ updater.idle()
 
 # Закрытие базы данных
 db.close()
- 
