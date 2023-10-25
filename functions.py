@@ -14,7 +14,6 @@ def goals_output(user_id):
         return ["У вас нет целей"]
     # перебираем все цели
     for elem in types_names:
-        print(elem)
         if elem[3] == "expense":  # если цель связана с расходами
             # получаем id типа, скоторым связана цель
             cursor.execute("SELECT id  FROM expense_types WHERE user_id=? AND name=?", (user_id, elem[1]))
@@ -67,9 +66,7 @@ def goals_output(user_id):
 
     return goal_str_list
 
-
 def is_valid_date(input_date):
-    print("is_valid_date")
     try:
         # преобразуем строку в объект datetime
         date = datetime.strptime(input_date, '%Y-%m-%d ' + '%H:%M:%S')
