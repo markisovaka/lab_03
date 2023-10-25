@@ -1,10 +1,17 @@
 import sqlite3
 from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler, Filters, ConversationHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from datetime import datetime
+
+from dateutil.relativedelta import relativedelta
+from functions import *
+from def_visual import *
 
 # Инициализация базы данных
 db = sqlite3.connect('finances.db', check_same_thread=False)
 cursor = db.cursor()
+
+
 def goal(update, context):
     print("goal")
     # добавляем кнопки для работы с целями
@@ -34,7 +41,6 @@ def goal_action_button(update, context):
             # Отправить сообщение с текстом mes
             query.message.reply_text(mes)
     return ConversationHandler.END
-
 
 
 # обработчик кнопки
@@ -96,6 +102,40 @@ def goal_amount(update, context):
     return "goal_date"
 
 
+def goal_date(update, context):
+    print("goal_date")
+    user_id = update.message.from_user.id
+    # Получение имени цели из данных пользователя
+    goal_name = context.user_data["goal_name"]
+    goal__date = update.message.text + " 23:59:59"
+    print("goal_date1")
+    if not is_valid_date(goal__date):  # Проверка, является ли введенная дата допустимой
+        update.message.reply_text('Некорректный формат даты\nПопробуйте еще раз')
+        return "goal_date"
+    print("goal_date2")
+    type_of = context.user_data["goal_type"]
+    goal__amount = context.user_data["goal_amount"]
+    print("goal_date3")
+
+    cursor.execute(
+        "INSERT INTO goals (user_id, goal_name, goal_date, type_of, goal_amount, start_date) VALUES (?, ?, ?, ?, ?,datetime('now', 'localtime'))",
+        (user_id, goal_name, goal__date, type_of, goal__amount))
+    print("goal_date4")
+    if type_of == "expense":
+        type_of_ru = "Расходы"
+    else:
+        type_of_ru = "Доходы"
+    print("goal_date5")
+    update.message.reply_text(f'Цель {type_of_ru}-{goal_name}\n'
+                              f'на сумму {goal__amount} р\n'
+                              f'с датой {goal__date[:11]}\n'
+                              f'успешно добавлена')
+    print("goal_date6")
+    db.commit()
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
 # Функция для обработки команды /start
 def start(update, context):
     print("start")
@@ -109,9 +149,12 @@ def start(update, context):
         # Если пользователя нет в бд, добавляем его
         cursor.execute("INSERT INTO users VALUES (?)", (user_id,))
         db.commit()
-        update.message.reply_text("Добро пожаловать в трекер бюджета!")
+        update.message.reply_text("Добро пожаловать в трекер бюджета!\n\n"
+                                  "Начните с создания типов ваших расходов и доходов с помощью команды /add_type.\n"
+                                  "Чтобы ознакомиться со всеми функциями бота воспользуйтесь командой /get_info.")
     else:
         update.message.reply_text("Вы уже зарегистрированы в трекере бюджета")
+    return ConversationHandler.END
 
 
 # Функция команды /add_type
@@ -124,6 +167,7 @@ def add_type(update, context):
 
     # Выводим сообщение и клавиатуру
     update.message.reply_text('Выберите куда добавить тип:', reply_markup=reply_markup)
+    return ConversationHandler.END
 
 
 # Функция кнопки выбора типа
@@ -151,6 +195,7 @@ def save_type(update, context):
     user_id = update.message.from_user.id
     type_name = context.user_data['type_name']
     name = update.message.text
+    print(name)
 
     # Проверяем, есть ли уже у пользователя такой тип
     if type_name == 'expense':
@@ -188,7 +233,7 @@ def add_expense(update, context):
     # Говорим пользователю добавить тип, если их нет
     if len(expense_types) == 0:
         update.message.reply_text('У вас пока нет типов расходов. Добавьте тип с помощью команды /add_type.')
-        return
+        return ConversationHandler.END
 
     # Создаем клавиатуру типов расходов
     keyboard = [[InlineKeyboardButton(expense_type[2], callback_data=("EXPENSE:" + str(expense_type[0])))] for
@@ -196,7 +241,8 @@ def add_expense(update, context):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     update.message.reply_text('Выберите тип расходов:', reply_markup=reply_markup)
-    return "expense_button"
+
+    return ConversationHandler.END
 
 
 # Функция кнопки выбора типа расходов
@@ -208,8 +254,14 @@ def expense_button(update, context):
     # Сохраняем выбранный тип расходов в контексте
     context.user_data['type_id'] = type_id
 
+    # получаем имя типа расходов
+    cursor.execute("SELECT name FROM expense_types WHERE id=?", (type_id,))
+    name = cursor.fetchone()[0]
     # Запрашиваем у пользователя сумму расходов
-    query.message.reply_text(f'Введите сумму расходов:')
+
+    query.message.reply_text(f'Вы выбрали тип: {name}')
+    query.message.reply_text(f'Введите сумму расходов в формате: <сумма>  <комментарий>')
+    query.message.reply_text(f'Комментарий указывается по желанию')
     return "expense"
 
 
@@ -219,23 +271,31 @@ def save_expense(update, context):
     comment = ""
     user_id = update.message.chat.id
     type_id = context.user_data["type_id"]
+    print("1")
     # Получаем размер расходов и комментарий
     if " " in update.message.text:
         amount, comment = update.message.text.split(maxsplit=1)
     else:
         amount = update.message.text
+    print("2")
+    # проверка что сумма является целым неотрицательным числом
+    if not amount.isdigit():
+        update.message.reply_text("Сумма должна быть целым неотрицательным числом\nПопробуйте еще раз")
+        return "expense"
+    print(3)
     amount = int(amount)
 
     # Добавляем расходы в бд
     cursor.execute(
-        "INSERT INTO expenses (user_id, type_id, amount, comment, timestamp) VALUES (?, ?, ?, ?, datetime('now'))",
+        "INSERT INTO expenses (user_id, type_id, amount, comment, timestamp) VALUES (?, ?, ?, ?, datetime('now','localtime'))",
         (user_id, type_id, amount, comment))
     db.commit()
-
+    print(4)
     update.message.reply_text('Расходы сохранены!')
 
     # Удаляем данные о выбранном типе расходов из контекста
     del context.user_data['type_id']
+    print(5)
     return ConversationHandler.END
 
 
@@ -251,7 +311,7 @@ def add_income(update, context):
     # Говорим пользователю добавить тип, если их нет
     if len(income_types) == 0:
         update.message.reply_text('У вас пока нет типов доходов. Добавьте тип с помощью команды /add_type.')
-        return
+        return ConversationHandler.END
 
     # Создаем клавиатуру типов доходов
     keyboard = [[InlineKeyboardButton(income_type[2], callback_data=("INCOME:" + str(income_type[0])))] for income_type
@@ -259,7 +319,7 @@ def add_income(update, context):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     update.message.reply_text('Выберите тип доходов:', reply_markup=reply_markup)
-    return "income_button"
+    return ConversationHandler.END
 
 
 # Функция сообщения с суммой доходов
@@ -273,11 +333,16 @@ def save_income(update, context):
         amount, comment = update.message.text.split(maxsplit=1)
     else:
         amount = update.message.text
+    print(amount)
+    if not amount.isdigit():
+        update.message.reply_text("Сумма должна быть целым неотрицательным числом\nПопробуйте еще раз")
+        return "income"
+
     amount = int(amount)
 
     # Добавляем расходы в бд
     cursor.execute(
-        "INSERT INTO incomes (user_id, type_id, amount, comment, timestamp) VALUES (?, ?, ?, ?, datetime('now'))",
+        "INSERT INTO incomes (user_id, type_id, amount, comment, timestamp) VALUES (?, ?, ?, ?, datetime('now','localtime'))",
         (user_id, type_id, amount, comment))
     db.commit()
 
@@ -301,9 +366,63 @@ def income_button(update, context):
     # Сохраняем выбранный тип доходов в контексте
     context.user_data['type_id'] = type_id
 
-    # Запрашиваем у пользователя сумму доходов
-    query.message.reply_text('Введите сумму доходов:')
+    # получаем имя типа расходов
+    cursor.execute("SELECT name FROM income_types WHERE id=?", (type_id,))
+    name = cursor.fetchone()[0]
+    # Запрашиваем у пользователя сумму расходов
+    query.message.reply_text(f'Вы выбрали тип: {name}')
+    query.message.reply_text(f'Введите сумму доходов в формате: <сумма>  <комментарий>')
+    query.message.reply_text(f'Комментарий указывается по желанию')
     return "income"
+
+
+# Функция команды /check_types
+def check_types(update, context):
+    print("check_types")
+
+    # Создаем клавиатуру с кнопками категорий
+    keyboard = [[InlineKeyboardButton("Типы расходов", callback_data='expense_list')],
+                [InlineKeyboardButton("Типы доходов", callback_data='income_list')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Выводим сообщение и клавиатуру
+    update.message.reply_text('Выберите, что хотите посмотреть:', reply_markup=reply_markup)
+
+
+# Функция вывода типов
+def check_button(update, context):
+    print("check_button")
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    # Получаем выбранную категорию из данных кнопки
+    category = query.data
+
+    # Выводим список типов
+    if category == 'expense_list':
+        cursor.execute("SELECT * FROM expense_types WHERE user_id=?", (user_id,))
+        expense_types = cursor.fetchall()
+        types = [type[2] for type in expense_types]
+        query.message.reply_text('Типы расходов:\n\n' + "\n".join(types))
+    elif category == 'income_list':
+        cursor.execute("SELECT * FROM income_types WHERE user_id=?", (user_id,))
+        expense_types = cursor.fetchall()
+        types = [type[2] for type in expense_types]
+        query.message.reply_text('Типы доходов:\n\n' + "\n".join(types))
+
+    return ConversationHandler.END
+
+
+# Функция команды /get_info
+def get_info(update, context):
+    print("get_info")
+    # file = open('text.txt', 'r', encoding="utf-8")
+    # Открываем текстовый файл
+    with open('info.txt', encoding="utf-8") as file:
+        text = file.read()
+
+    # Отправляем текст пользователю
+    update.message.reply_text(text)
 
 
 # Функция обработки неизвестных команд
@@ -330,6 +449,8 @@ dispatcher.add_handler(CommandHandler('add_type', add_type))
 dispatcher.add_handler(CommandHandler('add_expense', add_expense))
 dispatcher.add_handler(CommandHandler('add_income', add_income))
 dispatcher.add_handler(CommandHandler('goal', goal))
+dispatcher.add_handler(CommandHandler('check_types', check_types))
+dispatcher.add_handler(CommandHandler('get_info', get_info))
 
 # Регистрация обработчика неизвестных команд
 dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
