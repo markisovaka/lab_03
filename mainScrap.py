@@ -245,16 +245,15 @@ dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
 # Регистрация обработчика ошибок
 dispatcher.add_error_handler(error)
 
-# регистрация обработчика сценариев
+handlers_list = [CallbackQueryHandler(expense_button, pattern='^EXPENSE:\d+$'),
+                 CallbackQueryHandler(type_button, pattern='^(expense|income)$'),
+                 CallbackQueryHandler(income_button, pattern='^INCOME:\d+$')]
 handler_conv = ConversationHandler(
-    entry_points=[CallbackQueryHandler(expense_button, pattern='^EXPENSE:\d+$'),
-                  CallbackQueryHandler(type_button, pattern='^(expense|income)$'),
-                  CallbackQueryHandler(income_button, pattern='^INCOME:\d+$')],
+    entry_points=handlers_list,
     states={
-        "expense": [MessageHandler(Filters.text & ~Filters.command, save_expense)],
-        "type": [MessageHandler(Filters.text & ~Filters.command, save_type)],
-        "income": [MessageHandler(Filters.text & ~Filters.command, save_income)]
-
+        "expense": [MessageHandler(Filters.text & ~Filters.command, save_expense)] + handlers_list,
+        "type": [MessageHandler(Filters.text & ~Filters.command, save_type)] + handlers_list,
+        "income": [MessageHandler(Filters.text & ~Filters.command, save_income)] + handlers_list
     },
 
     fallbacks=[]
