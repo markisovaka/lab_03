@@ -29,11 +29,67 @@ def goal_action_button(update, context):
         reply_markup = InlineKeyboardMarkup(keyboard)  # Создание разметки клавиатуры с кнопками
         query.message.reply_text('К чему вы хотите привязать цель:', reply_markup=reply_markup)
     elif action == 'view_goals':
-        # Для каждого сообщения из списка goals_output, полученного по идентификатору пользователя
-        for mes in goals_output(user_id):
-            # Отправить сообщение с текстом mes
-            query.message.reply_text(mes)
+            query.message.reply_text("тут что-то будет")
     return ConversationHandler.END
+
+
+# обработчик кнопки
+def goal_type_button(update, context):
+    print("goal_type_button")
+    # получаем id пользователя
+    user_id = update.callback_query.message.chat.id
+    query = update.callback_query
+    goal_type = query.data
+    # сохраняем тип цели в словаре user_data
+    context.user_data['goal_type'] = goal_type.split("goal_", maxsplit=1)[1]
+    # если тип цели - расход
+    if context.user_data['goal_type'] == 'expense':
+        cursor.execute("SELECT name FROM expense_types WHERE user_id=?", (user_id,))
+        types_names = cursor.fetchall()
+        # если у пользователя нет типов расходов
+        if len(types_names) == 0:
+            update.message.reply_text('У вас пока нет типов расходов. Добавьте тип с помощью команды /add_type.')
+            return ConversationHandler.END
+    # если тип цели - доход
+    elif context.user_data['goal_type'] == 'income':
+        cursor.execute("SELECT name FROM income_types WHERE user_id=?", (user_id,))
+        types_names = cursor.fetchall()
+        # если у пользователя нет типов доходов
+        if len(types_names) == 0:
+            update.message.reply_text('У вас пока нет типов доходов. Добавьте тип с помощью команды /add_type.')
+            return ConversationHandler.END
+    # создание кнопки
+    keyboard = [[InlineKeyboardButton(types_name[0], callback_data=("goal_name:" + types_name[0]))] for
+                types_name in types_names]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    query.message.reply_text('К чему вы хотите привязать цель:', reply_markup=reply_markup)
+    return ConversationHandler.END
+
+
+def goal_name_button(update, context):
+    print("goal_name_button")
+    query = update.callback_query
+    # Получить тип цели из данных о нажатии кнопки
+    goal_type = query.data
+    context.user_data['goal_name'] = goal_type.split("goal_name:", maxsplit=1)[1]
+    # Получить имя цели из типа цели и сохранить в словаре user_data
+    query.message.reply_text('Введите сумму цели:')
+    return "goal_amount"
+
+
+def goal_amount(update, context):
+    print("goal_amount")
+    amount = update.message.text  # Записываем введенный текст в переменную amount
+    if not amount.isdigit():  # Проверяем, является ли введенный текст числом
+        update.message.reply_text("Сумма должна быть целым неотрицательным числом\nПопробуйте еще раз")
+        return "goal_amount"
+    amount = int(amount)
+    # Сохраняем введенную сумму в словаре user_data
+    context.user_data['goal_amount'] = amount
+    update.message.reply_text('Введите дедлайн достижения цели в формате ГГГГ-MM-ДД:')
+
+    return "goal_date"
 
 
 # Функция для обработки команды /start
@@ -262,27 +318,39 @@ updater = Updater('5953145226:AAECAh2UaB5kCEfFM6YvsZ1zpBEYJTft83E', use_context=
 # Получение диспетчера для регистрации обработчиков
 dispatcher = updater.dispatcher
 
+dispatcher.add_handler(CallbackQueryHandler(check_button, pattern='^(expense_list|income_list)$'))
+
 # Регистрация обработчиков команд
 dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('add_type', add_type))
 dispatcher.add_handler(CommandHandler('add_expense', add_expense))
 dispatcher.add_handler(CommandHandler('add_income', add_income))
+dispatcher.add_handler(CommandHandler('goal', goal))
 
 # Регистрация обработчика неизвестных команд
 dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
 
+dispatcher.add_handler(CallbackQueryHandler(goal_action_button, pattern='^(add_goal|view_goals)$'))
+dispatcher.add_handler(CallbackQueryHandler(goal_type_button, pattern='^goal_(expense|income)$'))
+dispatcher.add_handler(CallbackQueryHandler(history_type_button, pattern='^(expense_history|income_history)$'))
+
 # Регистрация обработчика ошибок
 dispatcher.add_error_handler(error)
-
+# MessageHandler(Filters.text & ~Filters.command, save_expense)
+# регистрация обработчика сценариев
 handlers_list = [CallbackQueryHandler(expense_button, pattern='^EXPENSE:\d+$'),
                  CallbackQueryHandler(type_button, pattern='^(expense|income)$'),
-                 CallbackQueryHandler(income_button, pattern='^INCOME:\d+$')]
+                 CallbackQueryHandler(income_button, pattern='^INCOME:\d+$'),
+                 CallbackQueryHandler(goal_name_button, pattern='^goal_name:')]
 handler_conv = ConversationHandler(
     entry_points=handlers_list,
     states={
         "expense": [MessageHandler(Filters.text & ~Filters.command, save_expense)] + handlers_list,
         "type": [MessageHandler(Filters.text & ~Filters.command, save_type)] + handlers_list,
-        "income": [MessageHandler(Filters.text & ~Filters.command, save_income)] + handlers_list
+        "income": [MessageHandler(Filters.text & ~Filters.command, save_income)] + handlers_list,
+        "goal_amount": [MessageHandler(Filters.text & ~Filters.command, goal_amount)] + handlers_list,
+        "goal_date": [MessageHandler(Filters.text & ~Filters.command, goal_date)] + handlers_list,
+
     },
 
     fallbacks=[]
@@ -296,3 +364,4 @@ updater.idle()
 
 # Закрытие базы данных
 db.close()
+ 
