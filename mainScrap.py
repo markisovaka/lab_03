@@ -20,7 +20,9 @@ def start(update, context):
         # Если пользователя нет в бд, добавляем его
         cursor.execute("INSERT INTO users VALUES (?)", (user_id,))
         db.commit()
-        update.message.reply_text("Добро пожаловать в трекер бюджета!")
+        update.message.reply_text("Добро пожаловать в трекер бюджета!\n\n"
+                                  "Начните с создания типов ваших расходов и доходов с помощью команды /add_type.\n"
+                                  "Чтобы ознакомиться со всеми функциями бота воспользуйтесь командой /get_info.")
     else:
         update.message.reply_text("Вы уже зарегистрированы в трекере бюджета")
     return "expense"
@@ -87,6 +89,7 @@ def save_type(update, context):
 
     # Удаляем выбранный тип из контекста
     del context.user_data['type_name']
+
     return ConversationHandler.END
 
 
@@ -147,7 +150,7 @@ def save_expense(update, context):
 
     # Добавляем расходы в бд
     cursor.execute(
-        "INSERT INTO expenses (user_id, type_id, amount, comment, timestamp) VALUES (?, ?, ?, ?, datetime('now'))",
+        "INSERT INTO expenses (user_id, type_id, amount, comment, timestamp) VALUES (?, ?, ?, ?, datetime('now', 'localtime'))",
         (user_id, type_id, amount, comment))
     db.commit()
 
@@ -256,15 +259,27 @@ def check_button(update, context):
         expense_types = cursor.fetchall()
         types = []
         for type in expense_types: types.append(type[2])
-        query.message.reply_text(f'Типы расходов:\n{", ".join(types)}')
+        query.message.reply_text(f'Типы расходов:\n\n{", ".join(types)}')
     elif category == 'income_list':
         cursor.execute("SELECT * FROM income_types WHERE user_id=?", (user_id,))
         expense_types = cursor.fetchall()
         types = []
         for type in expense_types: types.append(type[2])
-        query.message.reply_text(f'Типы доходов:\n{", ".join(types)}')
+        query.message.reply_text(f'Типы доходов:\n\n{", ".join(types)}')
 
     return ConversationHandler.END
+
+
+# Функция команды /get_info
+def get_info(update, context):
+    print("get_info")
+
+    # Открываем текстовый файл
+    with open('info.txt') as file:
+        text = file.read()
+
+    # Отправляем текст пользователю
+    update.message.reply_text(text)
 
 
 # Функция обработки неизвестных команд
@@ -289,6 +304,7 @@ dispatcher.add_handler(CommandHandler('add_type', add_type))
 dispatcher.add_handler(CommandHandler('add_expense', add_expense))
 dispatcher.add_handler(CommandHandler('add_income', add_income))
 dispatcher.add_handler(CommandHandler('check_types', check_types))
+dispatcher.add_handler(CommandHandler('get_info', get_info))
 
 # Регистрация обработчика неизвестных команд
 dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
