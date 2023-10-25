@@ -13,18 +13,17 @@ cursor = db.cursor()
 
 
 def goal(update, context):
-    print("goal")
     # добавляем кнопки для работы с целями
     keyboard = [[InlineKeyboardButton("Добавить цель", callback_data='add_goal')],
                 [InlineKeyboardButton("Посмотреть цели", callback_data='view_goals')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
+
     # выводим кнопки
     update.message.reply_text('Выберите, что вы хотите сделать:', reply_markup=reply_markup)
     return ConversationHandler.END
 
 
 def goal_action_button(update, context):
-    print("goal_button")
     query = update.callback_query
     # Получение значения поля "data" из callback
     action = query.data
@@ -425,6 +424,171 @@ def get_info(update, context):
     update.message.reply_text(text)
 
 
+# Функция команды /get_history
+def view_history(update, context):
+    print("get_history")
+
+    # Создаем клавиатуру с кнопками категорий
+    keyboard = [[InlineKeyboardButton("Расходы", callback_data='expense_history'),
+                 InlineKeyboardButton("Доходы", callback_data='income_history')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Выводим сообщение и клавиатуру
+    update.message.reply_text('Выберите, что хотите посмотреть:', reply_markup=reply_markup)
+
+
+# Функция вывода истории расходов
+def history_type_button(update, context):
+    print("history_type_button")
+    query = update.callback_query
+
+    # Получаем выбранную категорию из данных кнопки и сохраняем в контексте
+    category = query.data
+    context.user_data['category'] = category
+    print(1)
+    # Создаем клавиатуру с кнопками периодов
+    keyboard = [
+        [(InlineKeyboardButton("День", callback_data='day')), (InlineKeyboardButton("Неделя", callback_data='week'))],
+        [(InlineKeyboardButton("Месяц", callback_data='month')), (InlineKeyboardButton("Год", callback_data='year'))],
+        [InlineKeyboardButton("Все время", callback_data='all')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Выводим сообщение и клавиатуру
+    print(3)
+
+    query.message.reply_text('Выберите период, за который хотите посмотреть историю:', reply_markup=reply_markup)
+    print(4)
+
+
+# Функция вывода истории расходов
+def history_button(update, context):
+    print("history_button 6")
+    print(2)
+    query = update.callback_query
+    user_id = query.from_user.id
+    print(1)
+    category = context.user_data["category"]
+
+    # Получаем выбранный период из данных кнопки
+    within = query.data
+
+    # Получаем данные о расходах из бд
+    if category == 'expense_history':
+        category_ru = 'расходов'
+        # За все время
+        if within == 'all':
+            within_ru = 'все время'
+            cursor.execute("SELECT amount, comment, timestamp FROM expenses WHERE user_id = ? ORDER BY timestamp",
+                           (user_id,))
+            result = cursor.fetchall()
+
+        else:
+            # За последний день
+            if within == 'day':
+                within_ru = 'сегодня'
+                time_start = str(datetime.now().date() - relativedelta(days=1)) + ' 00:00:00'
+                time_end = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # За последнюю неделю
+            elif within == 'week':
+                within_ru = 'прошедшую неделю'
+                time_start = str(datetime.now().date() - relativedelta(weeks=1)) + ' 00:00:00'
+                time_end = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # За последний месяц
+            elif within == 'month':
+                within_ru = 'прошедший месяц'
+                time_start = str(datetime.now().date() - relativedelta(months=1)) + ' 00:00:00'
+                time_end = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # За последний год
+            elif within == 'year':
+                within_ru = 'прошедший год'
+                time_start = str(datetime.now().date() - relativedelta(years=1)) + ' 00:00:00'
+                time_end = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            cursor.execute("SELECT amount, comment, timestamp FROM expenses WHERE user_id = ? AND timestamp "
+                           "BETWEEN ? AND ? ORDER BY timestamp",
+                           (user_id, time_start, time_end))
+            result = cursor.fetchall()
+
+    # Получаем данные о доходах из бд
+    elif category == 'income_history':
+        category_ru = 'доходов'
+        # За все время
+        if within == 'all':
+            within_ru = 'все время'
+            cursor.execute("SELECT amount, comment, timestamp FROM incomes WHERE user_id = ? ORDER BY timestamp",
+                           (user_id,))
+            result = cursor.fetchall()
+
+        else:
+            # За последний день
+            if within == 'day':
+                within_ru = 'сегодня'
+                time_start = str(datetime.now().date() - relativedelta(days=1)) + ' 00:00:00'
+                time_end = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # За последнюю неделю
+            elif within == 'week':
+                within_ru = 'прошедшую неделю'
+                time_start = str(datetime.now().date() - relativedelta(weeks=1)) + ' 00:00:00'
+                time_end = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # За последний месяц
+            elif within == 'month':
+                within_ru = 'прошедший месяц'
+                time_start = str(datetime.now().date() - relativedelta(months=1)) + ' 00:00:00'
+                time_end = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # За последний год
+            elif within == 'year':
+                within_ru = 'прошедший год'
+                time_start = str(datetime.now().date() - relativedelta(years=1)) + ' 00:00:00'
+                time_end = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            cursor.execute("SELECT amount, comment, timestamp FROM incomes WHERE user_id = ? AND timestamp "
+                           "BETWEEN ? AND ? ORDER BY timestamp",
+                           (user_id, time_start, time_end))
+            result = cursor.fetchall()
+    print(3)
+
+    # Вывод истории
+    if len(result) == 0:
+        query.message.reply_text(f"У вас нет {category_ru}")
+        return
+    history = [''] * len(result)
+    for i in range(len(result)):
+        history[i] = str(result[i][0]) + ' р. ' + str(result[i][1]) + ' ' + str(result[i][2][:10])
+    print(4)
+    query.message.reply_text(f'История {category_ru} за {within_ru}:\n\n' + "\n".join(history))
+    print(5)
+
+
+def view_diagram(update, context):
+    print("view_diagram")
+    # Создаем клавиатуру с кнопками категорий
+    keyboard = [[InlineKeyboardButton("Расходы", callback_data='expense_diagram'),
+                 InlineKeyboardButton("Доходы", callback_data='income_diagram')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Выводим сообщение и клавиатуру
+    update.message.reply_text('Выберите, что хотите посмотреть:', reply_markup=reply_markup)
+
+
+def diagram_button(update, context):
+    print("diagram_button")
+    user_id = update.callback_query.from_user.id
+    if update.callback_query.data == "expense_diagram":
+        returned = visual_expenses(update, context, user_id)
+        if returned != 0:
+            update.callback_query.message.reply_text(returned)
+    elif update.callback_query.data == "income_diagram":
+        returned = visual_incomes(update, context, user_id)
+        if returned != 0:
+            update.callback_query.message.reply_text(returned)
+
+
 # Функция обработки неизвестных команд
 def unknown_command(update, context):
     update.message.reply_text("Извините, я не понимаю эту команду.")
@@ -436,7 +600,7 @@ def error(update, context):
 
 
 # Создание объекта Updater и передача токена бота
-updater = Updater('5953145226:AAECAh2UaB5kCEfFM6YvsZ1zpBEYJTft83E', use_context=True)
+updater = Updater('6967430943:AAE1_mOyeoEz54cAGlO5ZSbf5aTUKmsY4J0', use_context=True)
 
 # Получение диспетчера для регистрации обработчиков
 dispatcher = updater.dispatcher
@@ -451,6 +615,8 @@ dispatcher.add_handler(CommandHandler('add_income', add_income))
 dispatcher.add_handler(CommandHandler('goal', goal))
 dispatcher.add_handler(CommandHandler('check_types', check_types))
 dispatcher.add_handler(CommandHandler('get_info', get_info))
+dispatcher.add_handler(CommandHandler('view_history', view_history))
+dispatcher.add_handler(CommandHandler('view_diagram', view_diagram))
 
 # Регистрация обработчика неизвестных команд
 dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
@@ -458,6 +624,8 @@ dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
 dispatcher.add_handler(CallbackQueryHandler(goal_action_button, pattern='^(add_goal|view_goals)$'))
 dispatcher.add_handler(CallbackQueryHandler(goal_type_button, pattern='^goal_(expense|income)$'))
 dispatcher.add_handler(CallbackQueryHandler(history_type_button, pattern='^(expense_history|income_history)$'))
+dispatcher.add_handler(CallbackQueryHandler(history_button, pattern='^(day|week|month|year|all)$'))
+dispatcher.add_handler(CallbackQueryHandler(diagram_button, pattern='^(expense_diagram|income_diagram)$'))
 
 # Регистрация обработчика ошибок
 dispatcher.add_error_handler(error)
